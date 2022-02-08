@@ -1,5 +1,5 @@
-from wbplot.utils import plots, images
-from wbplot import config, constants
+from .utils import plots, images
+from . import config, constants
 from os import system
 import platform
 from os.path import join, exists, split
