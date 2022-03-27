@@ -223,3 +223,42 @@ def check_orientation(orientation):
     elif orientation == 'p':
         return 'portrait'
     return orientation
+
+
+def format_values(values):
+    """
+    Format values such that they will be printed using scientific notation if
+    abs(e) > 2. Used for nicer ticklabels on colorbar.
+
+    Parameters
+    ----------
+    values : list
+        list of values to format
+
+    Returns
+    -------
+    formatted : list
+        list of strings, formatted values
+
+    """
+    if isinstance(values, int):
+        values = [values]
+
+    values_sci = []
+    values_e = []
+    for value in values:
+        scientific_notation = '{:.1e}'.format(value)
+        e = int(str(scientific_notation).split('e')[1])
+        values_sci.append(scientific_notation)
+        values_e.append(e)
+
+    if any([i < -2 or i > 3 for i in values_e]):
+        formatted = values_sci
+    elif any([i >= -2 and i < 0 for i in values_e]):
+        formatted = ['{:.2f}'.format(value) for value in values]
+    else:
+        formatted = map(str, values)
+
+    formatted = ['0' if value == '0.0e+00' else value for value in formatted]
+
+    return formatted

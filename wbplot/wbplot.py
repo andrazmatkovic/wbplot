@@ -5,10 +5,13 @@ import platform
 from os.path import join, exists, split
 from zipfile import ZipFile
 import tempfile
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def pscalar(file_out, pscalars, orientation='landscape',
-            hemisphere=None, vrange=None, cmap='magma', transparent=False):
+            hemisphere=None, vrange=None, cmap='magma', transparent=False,
+            colorbar=True, colorbar_position='center', colorbar_labels=None):
     """
     Save an image of parcellated scalars using Connnectome Workbench.
 
@@ -30,10 +33,19 @@ def pscalar(file_out, pscalars, orientation='landscape',
         MATPLOTLIB colormap to use for plotting
     transparent : bool, default False
         make all white pixels in resultant image transparent
+    colorbar : boolean
+        whether to plot colorbar
+    colorbar_position : str
+        'bottom' or 'center'
+    colorbar_labels : list
+        colorbar labels
 
     Returns
     -------
-    None
+    fig : matplotlib.figure.Figure
+        matplotlib figure
+    axes : matplotlib..axes.Axes
+        axis for matplotlib figure
 
     Raises
     ------
@@ -42,8 +54,8 @@ def pscalar(file_out, pscalars, orientation='landscape',
     """
 
     # Check file extension
-    if file_out[-4:] != ".png":  # TODO: improve input handling
-        file_out += ".png"
+    #if file_out[-4:] != ".png":  # TODO: improve input handling
+    #    file_out += ".png"
 
     # Perform checks on inputs
     cmap = plots.check_cmap_plt(cmap)
@@ -95,6 +107,39 @@ def pscalar(file_out, pscalars, orientation='landscape',
 
     if transparent:  # Make background (defined as white pixels) transparent
         plots.make_transparent(file_out)
+
+    # Make matplotlib figure for colorbar
+    img = plt.imread(file_out)
+    fig, axes = plt.subplots(dpi=300)
+    ax = plt.subplot()
+    ax.axis('off')
+    img = plt.imshow(img)
+    if vrange is None:
+        vrange = [np.min(pscalars), np.max(pscalars)]
+    if colorbar:
+        if hemisphere is None and colorbar_position == 'center':
+            cb_pos = [(1-0.24)/2, .45, 0.24, 0.03]
+        else:
+            cb_pos = [0.3, -0.08, 0.4, 0.05]
+        cax = ax.inset_axes(cb_pos, transform=ax.transAxes)
+        cbar = plt.colorbar(img, ax=ax, cax=cax, orientation="horizontal")
+        if colorbar_labels is not None:
+            n_ticks = len(colorbar_labels)
+        else:
+            n_ticks = 3
+        ticks = list(np.linspace(vrange[0], vrange[1], n_ticks))
+        img.set_cmap(cmap)
+        img.set_clim(vrange[0], vrange[1])
+        if colorbar_labels is None:
+            cbar.set_ticks(ticks, labels = plots.format_values(ticks))
+        else:
+            cbar.set_ticks(ticks, labels = colorbar_labels)            
+        cbar.ax.tick_params(labelsize='small')
+        if hemisphere is None and colorbar_position == 'center':
+            cbar.ax.xaxis.set_ticks_position('top')
+        fig.savefig(file_out)
+
+    return fig, axes
 
 
 def dscalar(file_out, dscalars, orientation='landscape',

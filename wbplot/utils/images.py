@@ -216,7 +216,7 @@ def extract_gifti_data(of):
 
 
 def write_parcellated_image(
-        data, fout, hemisphere=None, cmap='magma', vrange=None):
+        data, fout, hemisphere=None, cmap='magma', vrange=None, colorbar=True):
     """
     Change the colors for parcels in a dlabel file to illustrate pscalar data.
 
