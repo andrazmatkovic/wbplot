@@ -11,7 +11,7 @@ import xml.etree.cElementTree as eT
 from nibabel.cifti2.parse_cifti2 import Cifti2Parser
 
 
-def map_unilateral_to_bilateral(pscalars, hemisphere):
+def map_unilateral_to_bilateral(pscalars, hemisphere, parcellation='Glasser'):
     """
     Map 180 unilateral pscalars to 360 bilateral pscalars, padding contralateral
     hemisphere with zeros.
@@ -27,18 +27,25 @@ def map_unilateral_to_bilateral(pscalars, hemisphere):
     numpy.ndarray
 
     """
-    hemisphere = check_parcel_hemi(pscalars=pscalars, hemisphere=hemisphere)
+
+    hemisphere = check_parcel_hemi(pscalars=pscalars, hemisphere=hemisphere, 
+        parcellation=parcellation)
+
     if hemisphere is None:
         return pscalars
-    pscalars_lr = np.zeros(360)
+
+    n_regions = config.PARCELLATIONS[parcellation]['n_regions']
+    pscalars_lr = np.zeros(n_regions)
+
     if hemisphere == 'right':
-        pscalars_lr[:180] = pscalars
+        pscalars_lr[:int(n_regions/2)] = pscalars
     elif hemisphere == 'left':
-        pscalars_lr[180:] = pscalars
+        pscalars_lr[int(n_regions/2):] = pscalars
+
     return pscalars_lr
 
 
-def check_pscalars_unilateral(pscalars):
+def check_pscalars_unilateral(pscalars, parcellation='Glasser'):
     """
     Check that unilateral pscalars have the expected size and shape.
 
@@ -57,16 +64,18 @@ def check_pscalars_unilateral(pscalars):
     ValueError : pscalars is not one-dimensional and length 180
 
     """
+    n_regions = config.PARCELLATIONS[parcellation]['n_regions']
+
     if not isinstance(pscalars, np.ndarray):
         raise TypeError(
             "pscalars: expected array_like, got {}".format(type(pscalars)))
-    if pscalars.ndim != 1 or pscalars.size != 180:
-        e = "pscalars must be one-dimensional and length 180"
+    if pscalars.ndim != 1 or pscalars.size != int(n_regions/2):
+        e = "pscalars must be one-dimensional and length %d" % int(n_regions/2)
         e += "\npscalars.shape: {}".format(pscalars.shape)
         raise ValueError(e)
 
 
-def check_pscalars_bilateral(pscalars):
+def check_pscalars_bilateral(pscalars, parcellation='Glasser'):
     """
     Check that bilateral pscalars have the expected size and shape.
 
@@ -81,11 +90,13 @@ def check_pscalars_bilateral(pscalars):
     ValueError : pscalars is not one-dimensional and length 360
 
     """
+    n_regions = config.PARCELLATIONS[parcellation]['n_regions']
+
     if not isinstance(pscalars, np.ndarray):
         raise TypeError(
             "pscalars: expected array_like, got {}".format(type(pscalars)))
-    if pscalars.ndim != 1 or pscalars.size != 360:
-        e = "pscalars must be one-dimensional and length 180"
+    if pscalars.ndim != 1 or pscalars.size != n_regions:
+        e = f"pscalars must be one-dimensional and length {n_regions}"
         e += "\npscalars.shape: {}".format(pscalars.shape)
         raise ValueError(e)
 
@@ -119,7 +130,7 @@ def check_dscalars(dscalars):
         raise ValueError(e)
 
 
-def check_parcel_hemi(pscalars, hemisphere):
+def check_parcel_hemi(pscalars, hemisphere, parcellation='Glasser'):
     """
     Check hemisphere argument for package compatibility.
 
@@ -136,11 +147,12 @@ def check_parcel_hemi(pscalars, hemisphere):
 
     Raises
     ------
-    RuntimeError : pscalars is not length-360 but hemisphere not indicated
     ValueError : invalid hemisphere argument
 
     """
-    if pscalars.size != 360 and hemisphere is None:
+    n_regions = config.PARCELLATIONS[parcellation]['n_regions']
+
+    if pscalars.size != n_regions and hemisphere is None:
         raise RuntimeError(
             "you must indicate which hemisphere these pscalars correspond to")
     options = ['left', 'l', 'L', 'right', 'r', 'R', None, 'lr', 'LR']
@@ -216,7 +228,8 @@ def extract_gifti_data(of):
 
 
 def write_parcellated_image(
-        data, fout, hemisphere=None, cmap='magma', vrange=None, colorbar=True):
+        data, fout, hemisphere=None, cmap='magma', vrange=None, colorbar=True,
+        parcellation='Glasser'):
     """
     Change the colors for parcels in a dlabel file to illustrate pscalar data.
 
@@ -249,13 +262,14 @@ def write_parcellated_image(
     """
 
     # Check provided inputs and pad contralateral hemisphere with 0 if necessary
-    check_parcel_hemi(pscalars=data, hemisphere=hemisphere)
+    check_parcel_hemi(pscalars=data, hemisphere=hemisphere,
+        parcellation=parcellation)
     cmap = plots.check_cmap_plt(cmap)
     pscalars_lr = map_unilateral_to_bilateral(
-        pscalars=data, hemisphere=hemisphere)
+        pscalars=data, hemisphere=hemisphere, parcellation=parcellation)
 
     # Change the colors assigned to each parcel and save to `fout`
-    c = Cifti()
+    c = Cifti(parcellation=parcellation)
     c.set_cmap(data=pscalars_lr, cmap=cmap, vrange=vrange)
     c.save(fout)
 
@@ -401,8 +415,8 @@ class Cifti(object):
     a post-doctoral researcher at Yale.
     """
 
-    def __init__(self):
-        of = nib.load(config.PARCELLATION_FILE)  # must be a DLABEL file!!
+    def __init__(self, parcellation='Glasser'):
+        of = nib.load(config.PARCELLATIONS[parcellation]['dlabel'])  # must be a DLABEL file!!
         self.data = np.asanyarray(of.dataobj)
         self.header = of.header
         self.nifti_header = of.nifti_header
@@ -411,6 +425,8 @@ class Cifti(object):
         self.tree = eT.fromstring(self.header.to_xml())
         self.vrange = None
         self.ischanged = False
+        self.parcellation = parcellation
+        self.n_regions = config.PARCELLATIONS[parcellation]['n_regions']
 
     def set_cmap(self, data, cmap='magma', vrange=None, mappable=None):
         """
@@ -433,9 +449,10 @@ class Cifti(object):
         None
 
         """
-        if data.size != 360:
+        n_regions = self.n_regions
+        if data.size != n_regions:
             raise RuntimeError(
-                "pscalars must be length 360 for :class:~wbplot.images.Cifti")
+                f"pscalars must be length {n_regions} for :class:~wbplot.images.Cifti")
 
         # Check input arguments
         cmap = plots.check_cmap_plt(cmap)

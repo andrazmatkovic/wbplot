@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def pscalar(file_out, pscalars, orientation='landscape',
+def pscalar(file_out, pscalars, parcellation='Glasser', orientation='landscape',
             hemisphere=None, vrange=None, cmap='magma', transparent=False,
             colorbar=True, colorbar_position='center', colorbar_labels=None):
     """
@@ -22,6 +22,7 @@ def pscalar(file_out, pscalars, orientation='landscape',
         extension, it must be .png, e.g. fout="/Users/jbb/Desktop/test.png"
     pscalars : numpy.ndarray
         parcel scalar values
+    parcellation : 'Glasser' or 'Yeo17' or 'SchaeferLG_400'
     orientation : 'portrait' or 'landscape', default 'landscape'
         orientation of the output image. if hemisphere is None (i.e., if data
         are bilateral), this argument is ignored.
@@ -60,22 +61,23 @@ def pscalar(file_out, pscalars, orientation='landscape',
     # Perform checks on inputs
     cmap = plots.check_cmap_plt(cmap)
     orientation = plots.check_orientation(orientation)
-    hemisphere = images.check_parcel_hemi(pscalars, hemisphere)
+    hemisphere = images.check_parcel_hemi(pscalars, hemisphere, parcellation)
     if hemisphere is not None:
-        images.check_pscalars_unilateral(pscalars)
+        images.check_pscalars_unilateral(pscalars, parcellation=parcellation)
     else:
-        images.check_pscalars_bilateral(pscalars)
+        images.check_pscalars_bilateral(pscalars, parcellation=parcellation)
 
     # If `pscalars` is unilateral, pad other hemisphere with zeros
     pscalars = images.map_unilateral_to_bilateral(
-        pscalars=pscalars, hemisphere=hemisphere)
+        pscalars=pscalars, hemisphere=hemisphere, parcellation=parcellation)
 
     # Write `pscalars` to the neuroimaging file which is pre-loaded into the
     # scene file, and update the colors for each parcel using the file metadata
     temp_dir = tempfile.gettempdir()
     temp_cifti = join(temp_dir, split(constants.DLABEL_FILE)[1])
     images.write_parcellated_image(
-        data=pscalars, fout=temp_cifti, cmap=cmap, vrange=vrange)
+        data=pscalars, fout=temp_cifti, cmap=cmap, vrange=vrange,
+        parcellation=parcellation)
 
     # This is just to prevent error messages written to console because
     # ImageDense.dscalar.nii doesn't exist in the scene directory
@@ -113,6 +115,7 @@ def pscalar(file_out, pscalars, orientation='landscape',
     ax = plt.subplot()
     ax.axis('off')
     img = plt.imshow(img)
+    #TODO turn to function inside plots.py
     if vrange is None:
         vrange = [np.min(pscalars), np.max(pscalars)]
     if colorbar:
