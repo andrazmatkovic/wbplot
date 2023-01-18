@@ -83,8 +83,7 @@ def check_cmap_wb(cmap):
     """
     if cmap not in constants.CMAPS:
         raise ValueError(
-            '"{}" is not a colormap provided by Connectome Workbench.'.format(
-                cmap))
+            f'{cmap} is not a colormap provided by Connectome Workbench.')
     return cmap
 
 

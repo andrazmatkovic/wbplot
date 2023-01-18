@@ -492,6 +492,5 @@ class Cifti(object):
 
 # Pythonic version of this workbench command (primarily so I don't forget)
 def cifti_parcellate(cifti_in, dlabel_in, cifti_out, direction='COLUMN'):
-    cmd = "wb_command -cifti-parcellate {} {} {} {}".format(
-        cifti_in, dlabel_in, direction, cifti_out)
+    cmd = f'wb_command -cifti-parcellate {cifti_in} {dlabel_in} {direction} {cifti_out}'
     system(cmd)

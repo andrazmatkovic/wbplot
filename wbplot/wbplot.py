@@ -93,15 +93,14 @@ def pscalar(file_out, pscalars, orientation='landscape',
     scene_file = join(temp_dir, "Human.scene")
     if not exists(scene_file):
         raise RuntimeError(
-            "scene file was not successfully copied to {}".format(scene_file))
+            f"scene file was not successfully copied to {scene_file}")
 
     # Map the input parameters to the appropriate scene in the scene file
     scene, width, height = plots.map_params_to_scene(
         dtype='pscalars', orientation=orientation, hemisphere=hemisphere)
 
     # Call Connectome Workbench's command-line utilities to generate an image
-    cmd = 'wb_command -show-scene "{}" {} "{}" {} {}'.format(
-        scene_file, scene, file_out, width, height)
+    cmd = f'wb_command -show-scene {scene_file} {scene} {file_out} {width} {height}'
     # cmd += " >/dev/null 2>&1"
     system(cmd)
 
